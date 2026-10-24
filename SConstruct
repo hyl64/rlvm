@@ -1,5 +1,7 @@
 
 import os
+import shutil
+import subprocess
 from SCons.Conftest import *
 
 # 0.98.3 had a bug where it wasn't generating config.h files correctly. :(
@@ -65,26 +67,18 @@ env = Environment(
   BUILD_LUA_TESTS = False,
 )
 
-if env['PLATFORM'] == "darwin":
-  env.Append(
-    LIBS = [
-      "boost_program_options-mt",
-      "boost_serialization-mt",
-      "boost_iostreams-mt",
-      "boost_filesystem-mt",
-      "boost_date_time-mt",
-      "boost_thread-mt",
-      "boost_system-mt"])
-else:
-  env.Append(
-    LIBS = [
-      "boost_program_options",
-      "boost_serialization",
-      "boost_iostreams",
-      "boost_filesystem",
-      "boost_date_time",
-      "boost_thread",
-      "boost_system"])
+# Boost has been thread-safe and single-suffixed upstream since 1.69: every
+# distribution now installs the plain names, so the old darwin "-mt" special
+# case retired itself.
+env.Append(
+  LIBS = [
+    "boost_program_options",
+    "boost_serialization",
+    "boost_iostreams",
+    "boost_filesystem",
+    "boost_date_time",
+    "boost_thread",
+    "boost_system"])
 
 if GetOption("fullstatic"):
   env["FULL_STATIC_BUILD"] = True
@@ -132,13 +126,24 @@ if env['PLATFORM'] == "darwin":
       CPPPATH = ["/usr/local/include/"],
       LIBPATH = ["/usr/local/lib/"]
     )
-  if os.path.exists('/usr/local/opt/gettext/'):
-    # Homebrew does this bogus thing where installing the gettext bottle doesn't
-    # actually symlink the headers and libraries into /usr/local/.
-    env.Append(
-      CPPPATH = ["/usr/local/opt/gettext/include/"],
-      LIBPATH = ["/usr/local/opt/gettext/lib/"]
-    )
+  # Homebrew does this bogus thing where keg-only formulae like gettext are
+  # never symlinked into the prefix: the headers and libraries sit in the
+  # versioned Cellar instead. Probing each prefix by hand, as the Fink and
+  # MacPorts cases above do, is a list that only ever grows. Ask brew itself
+  # where the formula lives -- ParseConfig below already trusts sdl-config
+  # and pkg-config, and this is the same bargain.
+  brew = shutil.which("brew")
+  if brew:
+    try:
+      gettext_prefix = subprocess.check_output(
+        [brew, "--prefix", "gettext"], text=True).strip()
+      if gettext_prefix:
+        env.Append(
+          CPPPATH = [gettext_prefix + "/include/"],
+          LIBPATH = [gettext_prefix + "/lib/"]
+        )
+    except subprocess.CalledProcessError:
+      pass
 
 #########################################################################
 ## CheckBoost
