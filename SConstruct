@@ -67,9 +67,10 @@ env = Environment(
   BUILD_LUA_TESTS = False,
 )
 
-# Boost has been thread-safe and single-suffixed upstream since 1.69: every
-# distribution now installs the plain names, so the old darwin "-mt" special
-# case retired itself.
+# Boost has been thread-safe and single-suffixed upstream since 1.69 -- the
+# same release that turned System header-only. Every distribution now installs
+# the plain names, so the old darwin "-mt" special case retired itself and
+# boost_system left the link line for good.
 env.Append(
   LIBS = [
     "boost_program_options",
@@ -77,8 +78,7 @@ env.Append(
     "boost_iostreams",
     "boost_filesystem",
     "boost_date_time",
-    "boost_thread",
-    "boost_system"])
+    "boost_thread"])
 
 if GetOption("fullstatic"):
   env["FULL_STATIC_BUILD"] = True
