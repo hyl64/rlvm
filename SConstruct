@@ -320,10 +320,19 @@ env = config.Finish()
 ### called or else we get a really confusing error.
 if env['PLATFORM'] == 'darwin':
   env.Append(LIBS=["SDL", "intl", "iconv"])
-  # Homebrew's static archives are not self-contained: the app bundle links
-  # sndfile and freetype whole, so name their closures (opus, vorbisenc for
-  # sndfile; png for freetype) after their users on the link line.
-  env.Append(LIBS=["opus", "vorbisenc", "png"])
+  # Homebrew's static archives carry no dependency metadata, yet the app
+  # bundle links sndfile and freetype whole. Ask pkg-config for their
+  # private closure -- the .pc authors maintain it so nobody has to --
+  # and append it after its users, the way static linking wants it.
+  # (hvf, bz2 and friends have no static archive anywhere; they fall back
+  # to the system dylibs through the SDK, which is how the bottles were
+  # built in the first place.)
+  static_closure = subprocess.check_output(
+    ["pkg-config", "--static", "--libs", "sndfile", "freetype2"],
+    text=True).split()
+  env.Append(
+    LIBPATH = [tok[2:] for tok in static_closure if tok.startswith("-L")],
+    LIBS = [tok[2:] for tok in static_closure if tok.startswith("-l")])
 
 #########################################################################
 ## Building subcomponent functions
