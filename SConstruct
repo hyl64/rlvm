@@ -109,6 +109,11 @@ if env['PLATFORM'] == "darwin":
   # renderer this tree was built around; hush the chorus so that real
   # warnings stay audible.
   env.Append(CPPDEFINES = ["GL_SILENCE_DEPRECATION"])
+  # Two-level namespacing: our renderers and guichan call gl* directly, so
+  # the framework must be named on every link line, here where every binary
+  # environment is born. (The SDL 1.2 framework that once re-exported it is
+  # long gone.)
+  env.Append(FRAMEWORKS = ["OpenGL"])
 
   # Fink based mac
   if os.path.exists("/sw/"):

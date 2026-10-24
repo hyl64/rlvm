@@ -23,12 +23,9 @@ root_env.Append(
   ]
 )
 
-# Two-level namespacing: every direct gl* call needs the framework named on
-# our own link line. sdl12-compat's sdl-config names its own frameworks, but
-# not the one our renderers call into; the days of the SDL 1.2 framework
-# re-exporting OpenGL for us are gone, so the author's benched line returns.
-if root_env['PLATFORM'] == 'darwin':
-  root_env.Append(FRAMEWORKS=["OpenGL"])
+# if root_env['PLATFORM'] == 'darwin':
+#   root_env.Append(FRAMEWORKS=["OpenGL"])
+# else:
 
 root_env.ParseConfig("sdl-config --libs")
 
