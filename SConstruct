@@ -105,6 +105,11 @@ if ARGUMENTS.get('VERBOSE') != '1':
 ## Platform Specific Locations
 #########################################################################
 if env['PLATFORM'] == "darwin":
+  # OpenGL is formally deprecated on macOS (since 10.14) yet remains the
+  # renderer this tree was built around; hush the chorus so that real
+  # warnings stay audible.
+  env.Append(CPPDEFINES = ["GL_SILENCE_DEPRECATION"])
+
   # Fink based mac
   if os.path.exists("/sw/"):
     env['ENV']['PATH'] += ":/sw/bin"
