@@ -126,24 +126,37 @@ if env['PLATFORM'] == "darwin":
       CPPPATH = ["/usr/local/include/"],
       LIBPATH = ["/usr/local/lib/"]
     )
-  # Homebrew does this bogus thing where keg-only formulae like gettext are
-  # never symlinked into the prefix: the headers and libraries sit in the
-  # versioned Cellar instead. Probing each prefix by hand, as the Fink and
+  # Homebrew, whether it lives in /usr/local (Intel) or /opt/homebrew (Apple
+  # Silicon), is invisible to Apple clang's search paths and to the PATH SCons
+  # hands its child processes. Probing each prefix by hand, as the Fink and
   # MacPorts cases above do, is a list that only ever grows. Ask brew itself
-  # where the formula lives -- ParseConfig below already trusts sdl-config
-  # and pkg-config, and this is the same bargain.
+  # where it lives -- the same bargain ParseConfig strikes with sdl-config and
+  # pkg-config -- and teach the environment about it.
   brew = shutil.which("brew")
   if brew:
-    try:
-      gettext_prefix = subprocess.check_output(
-        [brew, "--prefix", "gettext"], text=True).strip()
-      if gettext_prefix:
+    def brew_prefix(formula = ""):
+      try:
+        return subprocess.check_output(
+          [brew, "--prefix"] + ([formula] if formula else []),
+          text=True).strip()
+      except subprocess.CalledProcessError:
+        return ""
+    prefix = brew_prefix()
+    if prefix and os.path.exists(prefix):
+      env['ENV']['PATH'] += ":" + prefix + "/bin"
+      env.Append(
+        CPPPATH = [prefix + "/include/"],
+        LIBPATH = [prefix + "/lib/"]
+      )
+      # gettext is keg-only: it never appears under the prefix itself, so
+      # Homebrew does this bogus thing of handing out its Cellar path only
+      # through 'brew --prefix gettext'.
+      gettext = brew_prefix("gettext")
+      if gettext and os.path.exists(gettext + "/include/"):
         env.Append(
-          CPPPATH = [gettext_prefix + "/include/"],
-          LIBPATH = [gettext_prefix + "/lib/"]
+          CPPPATH = [gettext + "/include/"],
+          LIBPATH = [gettext + "/lib/"]
         )
-    except subprocess.CalledProcessError:
-      pass
 
 #########################################################################
 ## CheckBoost
