@@ -320,6 +320,10 @@ env = config.Finish()
 ### called or else we get a really confusing error.
 if env['PLATFORM'] == 'darwin':
   env.Append(LIBS=["SDL", "intl", "iconv"])
+  # Homebrew's static archives are not self-contained: the app bundle links
+  # sndfile and freetype whole, so name their closures (opus, vorbisenc for
+  # sndfile; png for freetype) after their users on the link line.
+  env.Append(LIBS=["opus", "vorbisenc", "png"])
 
 #########################################################################
 ## Building subcomponent functions
