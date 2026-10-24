@@ -1,7 +1,6 @@
 # Builds the rlvm.app with all binaries and files.
 
 import re
-import string
 
 Import('env')
 
@@ -70,10 +69,10 @@ AddOption('--dmgname', action='store',
 
 if GetOption('dmgname'):
   dmgname = GetOption('dmgname')
-  filename = string.replace(dmgname, ' ', '_') + ".dmg"
+  filename = dmgname.replace(' ', '_') + ".dmg"
   if not GetOption('fullstatic'):
-    print "**** WARNING: RELEASE BUILDS MUST HAVE --fullstatic ****"
-    exit
+    print("**** WARNING: RELEASE BUILDS MUST HAVE --fullstatic ****")
+    Exit(1)
 
   static_env.Command('$OUTPUT_DIR/' + filename,
                      '$OUTPUT_DIR/rlvm.app/',
