@@ -27,11 +27,14 @@ def MergeEverythingButSDLMain(env, cmd):
   p = re.compile('libSDLmain')
   def isSDLMain(x):
     return not p.search(x)
-  filtered_args = filter(isSDLMain, cmd.split(' '))
-  filtered_string = " ".join(filtered_args)
+  # list(): filter() is an iterator in Python 3, and MergeFlags must see
+  # every flag, not the tail of an iterator that join() just consumed.
+  filtered_args = list(filter(isSDLMain, cmd.split(' ')))
   return env.MergeFlags(filtered_args, 0)
 
-static_env.ParseConfig("sdl-config --static-libs", MergeEverythingButSDLMain)
+# Modern sdl-config (sdl12-compat included) speaks "--libs"; there is no
+# static SDL left anywhere to link an app bundle against.
+static_env.ParseConfig("sdl-config --libs", MergeEverythingButSDLMain)
 
 cocoarlvm_files = [
   # Technically cross platform, but put here for SDL dependency.
