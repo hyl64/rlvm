@@ -106,6 +106,25 @@ void PlayScriptedClicks() {
   static size_t next = 0;
   static unsigned int last_action = 0;
 
+  static bool pending_release = false;
+  static int pending_button = 1;
+  static int pending_x = 0;
+  static int pending_y = 0;
+
+  if (pending_release) {
+    pending_release = false;
+    SDL_Event up;
+    memset(&up, 0, sizeof(up));
+    up.type = SDL_MOUSEBUTTONUP;
+    up.button.type = SDL_MOUSEBUTTONUP;
+    up.button.button = pending_button;
+    up.button.state = SDL_RELEASED;
+    up.button.x = pending_x;
+    up.button.y = pending_y;
+    SDL_PushEvent(&up);
+    return;
+  }
+
   const unsigned int now = SDL_GetTicks();
   const char* delay_text = getenv("RLVM_CLICK_DELAY");
   const unsigned int delay = delay_text ? atoi(delay_text) : 600;
@@ -117,6 +136,19 @@ void PlayScriptedClicks() {
   const ScriptedClick& click = clicks[next++];
   last_action = now;
 
+  // Move first: the menu is drawn by guichan, which decides what is under
+  // the pointer from motion events, and ignores a click it cannot attribute.
+  SDL_Event motion;
+  memset(&motion, 0, sizeof(motion));
+  motion.type = SDL_MOUSEMOTION;
+  motion.motion.type = SDL_MOUSEMOTION;
+  motion.motion.x = click.x;
+  motion.motion.y = click.y;
+  motion.motion.xrel = 0;
+  motion.motion.yrel = 0;
+  motion.motion.state = 0;
+  SDL_PushEvent(&motion);
+
   SDL_Event down;
   memset(&down, 0, sizeof(down));
   down.type = SDL_MOUSEBUTTONDOWN;
@@ -127,15 +159,13 @@ void PlayScriptedClicks() {
   down.button.y = click.y;
   SDL_PushEvent(&down);
 
-  SDL_Event up;
-  memset(&up, 0, sizeof(up));
-  up.type = SDL_MOUSEBUTTONUP;
-  up.button.type = SDL_MOUSEBUTTONUP;
-  up.button.button = click.button;
-  up.button.state = SDL_RELEASED;
-  up.button.x = click.x;
-  up.button.y = click.y;
-  SDL_PushEvent(&up);
+  // The release goes out on the next call: a press and a release inside one
+  // frame is not a click anyone could make, and widgets that act on release
+  // never see it.
+  pending_release = true;
+  pending_button = click.button;
+  pending_x = click.x;
+  pending_y = click.y;
 }
 
 }  // namespace
