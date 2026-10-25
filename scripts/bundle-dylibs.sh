@@ -68,12 +68,16 @@ for lib in "$FW"/*; do repoint "$lib"; done
 
 # Rewriting load commands invalidates signatures; make everything ad-hoc
 # valid again so Gatekeeper has nothing to complain about locally.
-# codesign signing anything inside the .app scans the whole bundle, and
-# refuses if any file in it still carries Finder metadata -- SCons' copies
-# of the resource files bring exactly that. Strip it bundle-wide first;
-# everything in here is ours, and cp -LX kept the system-managed
-# provenance of Homebrew originals out, so nothing below may refuse.
-xattr -cr "$(dirname "$BIN")/../.."
+# codesign signing anything inside the .app scans the whole bundle and
+# refuses files still carrying Finder metadata. It signs right over
+# com.apple.provenance -- the kernel re-attaches that to freshly created
+# Mach-O images no matter what a copy does -- so clear exactly the two
+# attributes it actually minds, and forgive whichever are absent.
+BUNDLE="$(dirname "$BIN")/../.."
+for image in $(find "$BUNDLE" -type f); do
+  xattr -d com.apple.FinderInfo "$image" 2>/dev/null || true
+  xattr -d com.apple.ResourceFork "$image" 2>/dev/null || true
+done
 for lib in "$FW"/*; do codesign --force --sign - "$lib"; done
 codesign --force --sign - "$BIN"
 
