@@ -116,18 +116,33 @@ int Archive::text_encoding() {
     sample.push_back(&*it);
   }
 
+  // Ask the narrow reader first. Most games are Shift-JIS and it will
+  // frame every sample, in which case there is nothing left to ask.
   size_t readable[2] = {0, 0};
-  for (int encoding = 0; encoding < 2; ++encoding) {
-    Cp::instance(encoding);
+  Cp::instance(0);
+  for (const scenarios_t::value_type* entry : sample) {
+    try {
+      Scenario probe(entry->second, entry->first, regname_,
+                     second_level_xor_key_, 0);
+      ++readable[0];
+    } catch (const Error&) {
+      // Counted by omission.
+    }
+  }
+
+  if (readable[0] < sample.size()) {
+    Cp::instance(1);
     for (const scenarios_t::value_type* entry : sample) {
       try {
         Scenario probe(entry->second, entry->first, regname_,
-                       second_level_xor_key_, encoding);
-        ++readable[encoding];
+                       second_level_xor_key_, 1);
+        ++readable[1];
       } catch (const Error&) {
         // Counted by omission.
       }
     }
+  } else {
+    readable[1] = 0;
   }
 
   text_encoding_ = readable[1] > readable[0] ? 1 : 0;
