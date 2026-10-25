@@ -44,6 +44,7 @@ struct Cp1252 : public Codepage {
   std::wstring ConvertString(const std::string& s) const;
   bool DbcsDelim(char* str) const;
   bool IsItalic(unsigned short ch) const;
+  bool IsLeadByte(unsigned char ch) const;
   Cp1252();
 };
 

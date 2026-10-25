@@ -41,6 +41,11 @@
 #include <cstring>
 #include <string>
 
+bool Cp936::IsLeadByte(unsigned char ch) const {
+  // GBK: 0x81-0xFE open a double-byte character.
+  return ch >= 0x81;
+}
+
 Cp936::Cp936() {
   //  DesirableCharset = GB2312_CHARSET;
   NoTransforms = false;

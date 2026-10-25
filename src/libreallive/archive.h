@@ -71,6 +71,12 @@ class Archive {
   // with non-default encoding. This short circuits when it finds one.
   int GetProbableEncodingType() const;
 
+  // The text encoding this archive's bytecode is framed for. Fan
+  // translations re-encode the text without telling the header, so when the
+  // first scenario will not parse as Shift-JIS we ask the reader for the
+  // one that does, and remember the answer for the rest.
+  int text_encoding();
+
  private:
   typedef std::map<int, FilePos> scenarios_t;
   typedef std::map<int, std::unique_ptr<Scenario>> accessed_t;
@@ -90,6 +96,9 @@ class Archive {
   // Now that VisualArts is using per game xor keys, this is equivalent to the
   // game's second level xor key.
   const compression::XorKey* second_level_xor_key_;
+
+  // -1 until probed by text_encoding().
+  int text_encoding_;
 
   // The #REGNAME key from the Gameexe.ini file. Passed down to Scenario for
   // prettier error messages.

@@ -6,6 +6,8 @@
 */
 
 #import "SDL.h"
+#include <cstdio>
+
 #import "SDLMain.h"
 #import <sys/param.h> /* for MAXPATHLEN */
 #import <unistd.h>
@@ -362,7 +364,20 @@ BOOL setIncomingFilename(NSString* filename)
     /* Hand off to main application code */
     gCalledAppMainline = TRUE;
 
-    fs::path gamerootPath = instance.SelectGameDirectory();
+    // A game named on the command line, or dropped on the icon, is a
+    // request to play it -- asking again with a panel is just rude. The
+    // last non-option argument wins, so "rlvm.app /path/to/game" works
+    // from a terminal and from a script.
+    fs::path requested;
+    for (int i = 1; i < gArgc; ++i) {
+      const char* argument = gArgv[i];
+      if (!argument || argument[0] == '-' || strncmp(argument, "-psn", 4) == 0)
+        continue;
+      requested = fs::path(argument);
+    }
+
+    fs::path gamerootPath =
+        requested.empty() ? instance.SelectGameDirectory() : requested;
     if (gamerootPath.empty())
       exit(-1);
 

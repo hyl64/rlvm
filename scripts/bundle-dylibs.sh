@@ -60,6 +60,15 @@ for lib in "$FW"/*; do
   done
 done
 
+# The loaders ask for version-less names that the shipped files do not
+# carry: sdl12-compat wants libSDL2-2.0.dylib and sdl2-compat wants
+# libSDL3.dylib, while the bottles install the fully versioned names.
+for alias in libSDL2-2.0 libSDL3; do
+  if [ -f "$FW/$alias.0.dylib" ] && [ ! -e "$FW/$alias.dylib" ]; then
+    ln -s "$alias.0.dylib" "$FW/$alias.dylib"
+  fi
+done
+
 # Repoint every load command at what we just brought home.
 repoint() {
   image="$1"

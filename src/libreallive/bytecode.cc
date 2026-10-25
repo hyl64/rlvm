@@ -43,6 +43,7 @@
 #include <vector>
 
 #include "libreallive/scenario.h"
+#include "encodings/codepage.h"
 #include "libreallive/expression.h"
 
 #include "machine/rlmachine.h"
@@ -317,7 +318,7 @@ TextoutElement::TextoutElement(const char* src, const char* file_end) {
           *end == entrypoint_marker)
         break;
     }
-    if ((*end >= 0x81 && *end <= 0x9f) || (*end >= 0xe0 && *end <= 0xef))
+    if (IsDoubleByteLead(*end))
       end += 2;
     else
       ++end;
@@ -344,7 +345,7 @@ const string TextoutElement::GetText() const {
         rv.push_back('\\');
       }
     } else {
-      if ((*it >= 0x81 && *it <= 0x9f) || (*it >= 0xe0 && *it <= 0xef))
+      if (IsDoubleByteLead(*it))
         rv.push_back(*it++);
       rv.push_back(*it++);
     }

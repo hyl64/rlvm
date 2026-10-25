@@ -46,6 +46,7 @@ struct Cp949 : public Codepage {
   void JisEncodeString(const char* s, char* buf, size_t buflen) const;
   unsigned short Convert(unsigned short ch) const;
   std::wstring ConvertString(const std::string& s) const;
+  bool IsLeadByte(unsigned char ch) const;
   Cp949();
 };
 

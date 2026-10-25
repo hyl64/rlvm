@@ -85,9 +85,20 @@ bool Codepage::DbcsDelim(char* str) const { return false; }
 
 bool Codepage::IsItalic(uint16_t ch) const { return false; }
 
+bool Codepage::IsLeadByte(unsigned char ch) const {
+  // Shift-JIS: the historic RealLive text encoding.
+  return (ch >= 0x81 && ch <= 0x9f) || (ch >= 0xe0 && ch <= 0xef);
+}
+
 std::unique_ptr<Codepage> Cp::instance_;
 int Cp::codepage = -1;
 int Cp::scenario = -1;
+
+Codepage& Cp::current() {
+  if (!instance_)
+    instance(0);
+  return *instance_;
+}
 
 Codepage& Cp::instance(int desired) {
   // Desired codepage known.
@@ -109,3 +120,6 @@ Codepage& Cp::instance(int desired) {
   }
   return *instance_;
 }
+
+bool IsDoubleByteLead(unsigned char ch) { return Cp::current().IsLeadByte(ch); }
+

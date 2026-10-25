@@ -80,14 +80,18 @@ bundle_inputs += static_env.InstallAs(
 # dlopen()s it by bare name -- so it is named out loud; the bundle rpath
 # above is what lets that dlopen hit. The fixup depends on every file the
 # bundle will carry, because it signs the whole thing when it runs.
+brew = env.get('BREW_PREFIX', '/opt/homebrew')
 static_env.Command(
   '$OUTPUT_DIR/rlvm.app/Contents/Frameworks/.bundle-fixed',
   bundle_inputs,
   # Literal "build/", as in the pkg-dmg line below: $OUTPUT_DIR expands
   # to "#/build/" in an action string, and sh reads the '#' as a comment.
+  # sdl12-compat finds no backend by itself: it dlopens libSDL2-2.0.0.dylib
+  # from beside itself, and that (sdl2-compat) in turn dlopens libSDL3.dylib.
+  # Neither appears in any load command, so both are named out loud here.
   "scripts/bundle-dylibs.sh $SOURCE build/rlvm.app "
-  + env.get('BREW_PREFIX', '/opt/homebrew')
-  + "/opt/sdl3/lib/libSDL3.0.dylib")
+  + brew + "/opt/sdl2-compat/lib/libSDL2-2.0.0.dylib "
+  + brew + "/opt/sdl3/lib/libSDL3.0.dylib")
 
 AddOption('--dmgname', action='store',
           help='Builds a release package with the attached name. '

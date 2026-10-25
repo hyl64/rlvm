@@ -51,17 +51,25 @@ class Scenario {
  public:
   Scenario(const char* data, const size_t length, int scenarioNum,
            const std::string& regname,
-           const compression::XorKey* second_level_xor_key);
+           const compression::XorKey* second_level_xor_key,
+           int encoding_override = 0);
   Scenario(const FilePos& fp, int scenarioNum,
            const std::string& regname,
-           const compression::XorKey* second_level_xor_key);
+           const compression::XorKey* second_level_xor_key,
+           int encoding_override = 0);
   ~Scenario();
 
   // Get the scenario number
   int scene_number() const { return scenario_number_; }
 
-  // Get the text encoding used for this scenario
-  int encoding() const { return header.rldev_metadata_.text_encoding(); }
+  // Get the text encoding used for this scenario. An RLdev-compiled
+  // scenario states its own; translations that only re-encode the text
+  // leave the field at 0 and are recognised by their bytecode instead,
+  // which is what |encoding_override_| carries.
+  int encoding() const {
+    int stated = header.rldev_metadata_.text_encoding();
+    return stated ? stated : encoding_override_;
+  }
 
   // Access to metadata in the script. Don't worry about information loss;
   // valid values are 0, 1, and 2.
@@ -83,6 +91,7 @@ class Scenario {
   Header header;
   Script script;
   int scenario_number_;
+  int encoding_override_;
 };
 
 }  // namespace libreallive

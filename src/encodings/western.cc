@@ -58,6 +58,11 @@ uint16_t Italicise(uint16_t ch) {
   return ch + (ch >= 0x60 ? 0x8320 : 0x831f);
 }
 
+bool Cp1252::IsLeadByte(unsigned char ch) const {
+  // Cp1252 is single-byte throughout.
+  return false;
+}
+
 Cp1252::Cp1252() {
   //  DesirableCharset = ANSI_CHARSET;
   NoTransforms = false;

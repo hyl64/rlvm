@@ -50,6 +50,12 @@ struct Codepage {
   virtual bool DbcsDelim(char* str) const;
   virtual bool IsItalic(unsigned short ch) const;
 
+  // Whether |ch| opens a double-byte character in this codepage. The
+  // bytecode reader asks this of the active codepage to find element
+  // boundaries inside text, so a Chinese or Korean translation -- whose
+  // lead bytes run wider than Shift-JIS's -- frames correctly.
+  virtual bool IsLeadByte(unsigned char ch) const;
+
   int UseUnicode;
   int DesirableCharset;
   bool NoTransforms;
@@ -59,10 +65,17 @@ class Cp {
  public:
   // Singleton constructor
   static Codepage& instance(int desired);
+
+  // The codepage in force, without changing it.
+  static Codepage& current();
  private:
   static std::unique_ptr<Codepage> instance_;
   static int codepage;
   static int scenario;
 };
+
+// Whether |ch| begins a double-byte character in the codepage currently
+// in force.
+bool IsDoubleByteLead(unsigned char ch);
 
 #endif  // SRC_ENCODINGS_CODEPAGE_H_

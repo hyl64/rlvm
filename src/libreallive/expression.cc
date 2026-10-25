@@ -32,6 +32,7 @@
 //
 // -----------------------------------------------------------------------
 
+#include "encodings/codepage.h"
 #include "libreallive/expression.h"
 
 #include <boost/algorithm/string.hpp>
@@ -134,7 +135,7 @@ size_t NextString(const char* src) {
         end += 1 + NextExpression(end);
         continue;
       }
-      if (!((*end >= 0x81 && *end <= 0x9f) || (*end >= 0xe0 && *end <= 0xef) ||
+      if (!(IsDoubleByteLead(*end) ||
             (*end >= 'a' && *end <= 'z') ||
             (*end >= 'A' && *end <= 'Z') || (*end >= '0' && *end <= '9') ||
             *end == ' ' || *end == '?' || *end == '_' || *end == '"' ||
@@ -142,7 +143,7 @@ size_t NextString(const char* src) {
         break;
       }
     }
-    if ((*end >= 0x81 && *end <= 0x9f) || (*end >= 0xe0 && *end <= 0xef))
+    if (IsDoubleByteLead(*end))
       end += 2;
     else
       ++end;
@@ -156,7 +157,7 @@ size_t NextData(const char* src) {
     return 1 + NextData(src + 1);
   if (*src == '\n')
     return 3 + NextData(src + 3);
-  if ((*src >= 0x81 && *src <= 0x9f) || (*src >= 0xe0 && *src <= 0xef) ||
+  if (IsDoubleByteLead(*src) ||
       (*src >= 'A' && *src <= 'Z') || (*src >= '0' && *src <= '9') ||
       *src == ' ' || *src == '?' || *src == '_' || *src == '"' ||
       strcmp(src, "###PRINT(") == 0)
@@ -413,7 +414,7 @@ ExpressionPiece GetData(const char*& src) {
   } else if (*src == '\n') {
     src += 3;
     return GetData(src);
-  } else if ((*src >= 0x81 && *src <= 0x9f) || (*src >= 0xe0 && *src <= 0xef) ||
+  } else if (IsDoubleByteLead(*src) ||
              (*src >= 'A' && *src <= 'Z') || (*src >= '0' && *src <= '9') ||
              *src == ' ' || *src == '?' || *src == '_' || *src == '"' ||
              strcmp(src, "###PRINT(") == 0) {

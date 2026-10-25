@@ -189,20 +189,24 @@ const pointer_t Script::GetEntrypoint(int entrypoint) const {
 
 Scenario::Scenario(const char* data, const size_t length, int sn,
                    const std::string& regname,
-                   const compression::XorKey* second_level_xor_key)
+                   const compression::XorKey* second_level_xor_key,
+                   int encoding_override)
   : header(data, length),
     script(header, data, length, regname,
            header.use_xor_2_, second_level_xor_key),
-    scenario_number_(sn) {
+    scenario_number_(sn),
+    encoding_override_(encoding_override) {
 }
 
 Scenario::Scenario(const FilePos& fp, int sn,
                    const std::string& regname,
-                   const compression::XorKey* second_level_xor_key)
+                   const compression::XorKey* second_level_xor_key,
+                   int encoding_override)
   : header(fp.data, fp.length),
     script(header, fp.data, fp.length, regname,
            header.use_xor_2_, second_level_xor_key),
-    scenario_number_(sn) {
+    scenario_number_(sn),
+    encoding_override_(encoding_override) {
 }
 
 Scenario::~Scenario() {}

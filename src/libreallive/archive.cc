@@ -38,6 +38,7 @@
 #include <cstring>
 #include <string>
 
+#include "encodings/codepage.h"
 #include "libreallive/compression.h"
 
 using boost::istarts_with;
@@ -47,7 +48,10 @@ namespace fs = boost::filesystem;
 namespace libreallive {
 
 Archive::Archive(const std::string& filename)
-    : name_(filename), info_(filename, Read), second_level_xor_key_(NULL) {
+    : name_(filename),
+      info_(filename, Read),
+      second_level_xor_key_(NULL),
+      text_encoding_(-1) {
   ReadTOC();
   ReadOverrides();
 }
@@ -56,7 +60,8 @@ Archive::Archive(const std::string& filename, const std::string& regname)
     : name_(filename),
       info_(filename, Read),
       second_level_xor_key_(NULL),
-      regname_(regname) {
+      regname_(regname),
+      text_encoding_(-1) {
   ReadTOC();
   ReadOverrides();
 
@@ -94,14 +99,54 @@ Archive::Archive(const std::string& filename, const std::string& regname)
 
 Archive::~Archive() {}
 
+int Archive::text_encoding() {
+  if (text_encoding_ != -1)
+    return text_encoding_;
+
+  // One scenario is not enough to answer: a file can happen to contain no
+  // byte that the narrow reader mistakes for a delimiter. Sample a handful
+  // spread across the archive and let the reader that frames more of them
+  // win.
+  std::vector<const scenarios_t::value_type*> sample;
+  const size_t available = scenarios_.size();
+  const size_t wanted = available < 8 ? available : 8;
+  for (size_t k = 0; k < wanted; ++k) {
+    scenarios_t::const_iterator it = scenarios_.begin();
+    std::advance(it, k * available / wanted);
+    sample.push_back(&*it);
+  }
+
+  size_t readable[2] = {0, 0};
+  for (int encoding = 0; encoding < 2; ++encoding) {
+    Cp::instance(encoding);
+    for (const scenarios_t::value_type* entry : sample) {
+      try {
+        Scenario probe(entry->second, entry->first, regname_,
+                       second_level_xor_key_, encoding);
+        ++readable[encoding];
+      } catch (const Error&) {
+        // Counted by omission.
+      }
+    }
+  }
+
+  text_encoding_ = readable[1] > readable[0] ? 1 : 0;
+  Cp::instance(text_encoding_);
+  return text_encoding_;
+}
+
 Scenario* Archive::GetScenario(int index) {
   accessed_t::const_iterator at = accessed_.find(index);
   if (at != accessed_.end())
     return at->second.get();
   scenarios_t::const_iterator st = scenarios_.find(index);
   if (st != scenarios_.end()) {
-    Scenario* scene =
-        new Scenario(st->second, index, regname_, second_level_xor_key_);
+    // The bytecode reader asks the codepage in force how wide a character
+    // is, so it must agree with the archive before parsing starts.
+    int encoding = text_encoding();
+    Cp::instance(encoding);
+    Scenario* scene = new Scenario(st->second, index, regname_,
+                                   second_level_xor_key_, encoding);
     accessed_[index].reset(scene);
     return scene;
   }

@@ -13,6 +13,10 @@
 #include <string>
 #include <vector>
 
+#include <iomanip>
+#include <sstream>
+
+#include "libreallive/archive.h"
 #include "libreallive/compression.h"
 #include "libreallive/scenario.h"
 
@@ -83,17 +87,23 @@ int main(int argc, char** argv) {
   std::string xor_name;
   const char* path = NULL;
   bool from_table_of_contents = false;
+  bool dump_all = false;
+  std::string regname;
   for (int i = 1; i < argc; ++i) {
     if (std::strcmp(argv[i], "--xor") == 0 && i + 1 < argc) {
       xor_name = argv[++i];
     } else if (std::strcmp(argv[i], "--toc") == 0) {
       from_table_of_contents = true;
+    } else if (std::strcmp(argv[i], "--all") == 0) {
+      dump_all = true;
+    } else if (std::strcmp(argv[i], "--regname") == 0 && i + 1 < argc) {
+      regname = argv[++i];
     } else {
       path = argv[i];
     }
   }
   if (!path) {
-    std::cerr << "usage: seen-dump [--xor <game_key>] [--toc] <file.seen>\n";
+    std::cerr << "usage: seen-dump [--xor <key>] [--toc] [--all --regname <name>] <file.seen>\n";
     return 2;
   }
 
@@ -142,6 +152,20 @@ int main(int argc, char** argv) {
   }
 
   const libreallive::compression::XorKey* key = NULL;
+  if (const char* dump = std::getenv("RLVM_DUMP_DECOMPRESSED")) {
+    // A development aid, never part of the canonical diff: expose the exact
+    // stream the C++ parser saw when tracking down a framing mismatch.
+    const uint32_t offs = word_at(data, 0x20);
+    const uint32_t raw_len = word_at(data, 0x28);
+    const uint32_t out_len = word_at(data, 0x24);
+    std::vector<char> out(out_len);
+    const libreallive::compression::XorKey* dump_key = NULL;
+    if (!xor_name.empty()) dump_key = key_by_name(xor_name);
+    libreallive::compression::Decompress(data.data() + offs, raw_len,
+                                         out.data(), out_len, dump_key);
+    std::ofstream stream(dump, std::ios::binary);
+    stream.write(out.data(), out.size());
+  }
   if (!xor_name.empty()) {
     key = key_by_name(xor_name);
     if (!key) {
@@ -151,6 +175,60 @@ int main(int argc, char** argv) {
   }
 
   try {
+    if (dump_all) {
+      // Whole-game mode: walk the table of contents, parse every scenario
+      // through the real Archive (which owns the second-XOR key by REGNAME),
+      // and print one canonical summary line per scenario. The hash covers
+      // the instruction stream exactly as the single-file mode prints it.
+      libreallive::Archive arc(path, regname);
+      for (int i = 0; i < 10000; ++i) {
+        // One unparseable scenario must not hide the other 4000: report it
+        // and keep walking, exactly as a player would want.
+        libreallive::Scenario* scenario = NULL;
+        try {
+          scenario = arc.GetScenario(i);
+        } catch (const std::exception& e) {
+          std::cout << "s " << i << " error " << e.what() << "\n";
+          continue;
+        }
+        if (!scenario)
+          continue;
+        uint64_t hash = 1469598103934665603ULL;
+        size_t elements = 0;
+        size_t blen = 0;
+        std::string line;
+        for (libreallive::Scenario::const_iterator it = scenario->begin();
+             it != scenario->end(); ++it) {
+          const size_t len = (*it)->GetBytecodeLength();
+          line = "i " + std::to_string(blen) + " " + std::to_string(len);
+          const libreallive::CommandElement* command =
+              dynamic_cast<const libreallive::CommandElement*>(it->get());
+          if (command) {
+            line += " " + std::to_string(int(command->modtype())) + " " +
+                    std::to_string(int(command->module())) + " " +
+                    std::to_string(command->opcode()) + " " +
+                    std::to_string(command->overload());
+          }
+          const int entrypoint = (*it)->GetEntrypoint();
+          if (entrypoint != libreallive::BytecodeElement::kInvalidEntrypoint)
+            line += " entrypoint " + std::to_string(entrypoint);
+          line += "\n";
+          for (char c : line) {
+            hash ^= static_cast<unsigned char>(c);
+            hash *= 1099511628211ULL;
+          }
+          ++elements;
+          blen += len ? len : 1;
+        }
+        std::ostringstream hashout;
+        hashout << std::hex << std::setw(16) << std::setfill('0') << hash;
+        std::cout << "s " << i << " enc " << scenario->encoding()
+                  << " blen " << blen << " ins " << elements
+                  << " hash " << hashout.str() << "\n";
+      }
+      return 0;
+    }
+
     libreallive::Scenario scenario(data.c_str(), data.size(), 0, path, key);
 
     // Both halves of the differential test print these lines: the header's
@@ -162,6 +240,27 @@ int main(int argc, char** argv) {
               << scenario.savepoint_seentop() << "\n";
     std::cout << "bytecode_len " << DecompressedLength(data, key) << "\n";
     std::cout << "kidoku " << KidokuCount(data) << "\n";
+
+    // A canonical instruction stream: the next stage of the rewrite must
+    // agree not merely on file headers but on every instruction boundary.
+    size_t offset = 0;
+    for (libreallive::Scenario::const_iterator it = scenario.begin();
+         it != scenario.end(); ++it) {
+      const size_t len = (*it)->GetBytecodeLength();
+      std::cout << "i " << offset << " " << len;
+      const libreallive::CommandElement* command =
+          dynamic_cast<const libreallive::CommandElement*>(it->get());
+      if (command) {
+        std::cout << " " << int(command->modtype()) << " "
+                  << int(command->module()) << " " << command->opcode()
+                  << " " << command->overload();
+      }
+      const int entrypoint = (*it)->GetEntrypoint();
+      if (entrypoint != libreallive::BytecodeElement::kInvalidEntrypoint)
+        std::cout << " entrypoint " << entrypoint;
+      std::cout << "\n";
+      offset += len ? len : 1;
+    }
   } catch (const std::exception& e) {
     std::cout << "error " << e.what() << "\n";
     return 1;

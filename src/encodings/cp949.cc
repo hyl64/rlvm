@@ -43,6 +43,11 @@
 #include <cstring>
 #include <string>
 
+bool Cp949::IsLeadByte(unsigned char ch) const {
+  // UHC: 0x81-0xFE open a double-byte character.
+  return ch >= 0x81;
+}
+
 Cp949::Cp949() {
   //  DesirableCharset = HANGUL_CHARSET;
   NoTransforms = false;
