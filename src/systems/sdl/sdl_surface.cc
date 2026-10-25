@@ -28,6 +28,7 @@
 #include "systems/sdl/sdl_surface.h"
 
 #include <SDL/SDL.h>
+#include <cassert>
 #include <iostream>
 #include <sstream>
 #include <vector>
