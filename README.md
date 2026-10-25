@@ -29,6 +29,7 @@ Verified on an M-series Mac with **CLANNAD Full Voice** (Chinese translation,
 | Idle cost | 0.4 % CPU, 8.7 MB RSS |
 | App bundle | self-contained; runs where Homebrew was never installed |
 | Robustness | all 231 scenarios started; no crashes |
+| Play | title, new game, narration, sprites, system menu, save, load, preferences |
 
 ![Dialogue](docs/screenshot-dialogue.png)
 ![System menu](docs/screenshot-menu.png)
