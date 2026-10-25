@@ -15,10 +15,14 @@ set -eu
 
 SRC="$1"; BUNDLE="$2"; shift 2
 FW="$BUNDLE/Contents/Frameworks"
-BIN="$BUNDLE/Contents/MacOS/$(basename "$SRC")"
 
 rm -rf "$FW"
 mkdir -p "$FW"
+# Info.plist names the executable; the bundle lives or dies by that name,
+# whatever the build called its binary.
+EXEC_NAME="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' \
+  "$BUNDLE/Contents/Info.plist" 2>/dev/null || basename "$SRC")"
+BIN="$BUNDLE/Contents/MacOS/$EXEC_NAME"
 cp -LX "$SRC" "$BIN"
 
 is_third_party() {
