@@ -20,6 +20,12 @@
 	<string>0.14</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<!-- Without this, macOS pixel-doubles the whole window on Retina
+	     displays and the renderer never sees a sharp surface. -->
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>LSMinimumSystemVersion</key>
+	<string>11.0</string>
 	<key>NSMainNibFile</key>
 	<string>SDLMain.nib</string>
 	<key>NSPrincipalClass</key>
