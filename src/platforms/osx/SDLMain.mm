@@ -496,6 +496,11 @@ static void rlvm_set_locale() {
 /* Main entry point to executable - should *not* be SDL_main! */
 int main (int argc, char **argv)
 {
+    // A game window is not a document to be restored, and macOS offers to
+    // reopen one after a crash -- behind a modal that blocks launch until
+    // somebody clicks it. Refuse the offer before the application exists.
+    [[NSUserDefaults standardUserDefaults]
+        registerDefaults:@{@"ApplePersistenceIgnoreState" : @YES}];
     /* Copy the arguments into a global variable */
     /* This is passed if we are launched by double-clicking */
     if ( argc >= 2 && strncmp (argv[1], "-psn", 4) == 0 ) {
