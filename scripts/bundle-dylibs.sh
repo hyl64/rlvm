@@ -61,6 +61,9 @@ for lib in "$FW"/*; do repoint "$lib"; done
 
 # Rewriting load commands invalidates signatures; make everything ad-hoc
 # valid again so Gatekeeper has nothing to complain about locally.
+# SCons' file copies carry Finder metadata along, and codesign refuses to
+# sign anything that still holds such detritus.
+xattr -cr "$(dirname "$BIN")/../.."
 for lib in "$FW"/*; do codesign --force --sign - "$lib"; done
 codesign --force --sign - "$BIN"
 
