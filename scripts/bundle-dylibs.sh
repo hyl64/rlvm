@@ -16,6 +16,9 @@ set -eu
 SRC="$1"; BUNDLE="$2"; shift 2
 FW="$BUNDLE/Contents/Frameworks"
 
+# A tree built from scratch has no Contents/MacOS yet: this script is the
+# only thing that puts the executable there.
+mkdir -p "$BUNDLE/Contents/MacOS"
 rm -rf "$FW"
 mkdir -p "$FW"
 # Info.plist names the executable; the bundle lives or dies by that name,
