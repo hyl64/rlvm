@@ -5,3 +5,4 @@ config.log
 unittests_*.log
 .DS_Store
 shots/
+deliverable-*.png
