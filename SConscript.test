@@ -77,3 +77,11 @@ test_env.RlvmProgram('rlvm_unittests',
                      use_lib_set = ["TEST"],
                      rlvm_libs = ["rlvm"])
 test_env.Install('$OUTPUT_DIR', 'rlvm_unittests')
+
+# The reference half of the differential tests that keep rlvm-rust honest:
+# parses a SEEN file and prints it in a form both implementations can be
+# compared on, byte for byte. No SDL, no GUI -- libreallive only.
+test_env.RlvmProgram('seen-dump',
+                     ["tools/seen-dump.cc"],
+                     rlvm_libs = ["rlvm"])
+test_env.Install('$OUTPUT_DIR', 'seen-dump')
