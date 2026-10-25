@@ -78,6 +78,10 @@ for image in $(find "$BUNDLE" -type f); do
   xattr -d com.apple.FinderInfo "$image" 2>/dev/null || true
   xattr -d com.apple.ResourceFork "$image" 2>/dev/null || true
 done
+# The bundle directory itself: macOS hangs FinderInfo on directories as it
+# pleases, and codesign scanning the bundle root names it as disallowed
+# data. provenance it never mentions, and signs right over -- leave it be.
+xattr -d com.apple.FinderInfo "$BUNDLE" 2>/dev/null || true
 for lib in "$FW"/*; do codesign --force --sign - "$lib"; done
 codesign --force --sign - "$BIN"
 
