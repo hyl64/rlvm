@@ -338,9 +338,11 @@ if env['PLATFORM'] == 'darwin':
   static_closure = subprocess.check_output(
     ["pkg-config", "--static", "--libs", "sndfile", "freetype2"],
     text=True).split()
+  already_linked = set(env['LIBS'])
   env.Append(
     LIBPATH = [tok[2:] for tok in static_closure if tok.startswith("-L")],
-    LIBS = [tok[2:] for tok in static_closure if tok.startswith("-l")])
+    LIBS = [tok[2:] for tok in static_closure
+            if tok.startswith("-l") and tok[2:] not in already_linked])
 
 #########################################################################
 ## Building subcomponent functions
