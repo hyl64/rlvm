@@ -22,11 +22,14 @@ is_third_party() {
 }
 
 # Copy <path> into Frameworks and give it an @rpath identity, once.
+# -X: leave the source's extended attributes behind -- brew dylibs carry a
+# system-managed com.apple.provenance that not even root may clear, and a
+# fresh signature wants a clean slate anyway.
 copy() {
   path="$1"
   name="$(basename "$path")"
   if [ ! -f "$FW/$name" ]; then
-    cp -L "$path" "$FW/$name"
+    cp -LX "$path" "$FW/$name"
     install_name_tool -id "@rpath/$name" "$FW/$name"
   fi
 }
@@ -60,10 +63,11 @@ repoint "$BIN"
 for lib in "$FW"/*; do repoint "$lib"; done
 
 # Rewriting load commands invalidates signatures; make everything ad-hoc
-# valid again so Gatekeeper has nothing to complain about locally.
-# SCons' file copies carry Finder metadata along, and codesign refuses to
-# sign anything that still holds such detritus.
-xattr -cr "$(dirname "$BIN")/../.."
+# valid again so Gatekeeper has nothing to complain about locally. codesign
+# refuses binaries carrying Finder metadata, which SCons' copies can bring
+# along; clear exactly the two attributes it minds (either may be absent).
+xattr -d com.apple.FinderInfo "$BIN" 2>/dev/null || true
+xattr -d com.apple.ResourceFork "$BIN" 2>/dev/null || true
 for lib in "$FW"/*; do codesign --force --sign - "$lib"; done
 codesign --force --sign - "$BIN"
 
