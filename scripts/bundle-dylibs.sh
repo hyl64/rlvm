@@ -63,11 +63,14 @@ repoint "$BIN"
 for lib in "$FW"/*; do repoint "$lib"; done
 
 # Rewriting load commands invalidates signatures; make everything ad-hoc
-# valid again so Gatekeeper has nothing to complain about locally. codesign
-# refuses binaries carrying Finder metadata, which SCons' copies can bring
-# along; clear exactly the two attributes it minds (either may be absent).
-xattr -d com.apple.FinderInfo "$BIN" 2>/dev/null || true
-xattr -d com.apple.ResourceFork "$BIN" 2>/dev/null || true
+# valid again so Gatekeeper has nothing to complain about locally. A file
+# with the bundle binary's history -- SCons copies, repeated
+# install_name_tool passes -- can end up in a state codesign refuses as
+# "...detritus not allowed" even though no removable attribute shows.
+# The same bytes in a fresh file sign fine, so make one and swap it in.
+clean="$(dirname "$BIN")/rlvm-clean"
+cp -X "$BIN" "$clean"
+mv "$clean" "$BIN"
 for lib in "$FW"/*; do codesign --force --sign - "$lib"; done
 codesign --force --sign - "$BIN"
 
