@@ -162,6 +162,24 @@ And to run the test suite:
 
     $ ./build/rlvm_unittests
 
+### INSTALLING THE APP
+
+Drag `rlvm.app` out of the dmg into `/Applications`, then launch it once
+and choose your game directory; the choice is remembered.
+
+If macOS refuses to open it because the build is not notarised:
+
+    $ xattr -dr com.apple.quarantine /Applications/rlvm.app
+
+or right-click the app and choose Open, which grants the same permission
+for that copy.
+
+**Keep game data out of cloud-synced folders** (`~/Documents`,
+`~/Desktop` when iCloud sync is on): the sync daemon holds directories
+during its scans and the engine can stall on the very first `open()`.
+`/Users/Shared`, `/Applications`, or any local path is fine. See
+`PERF.md`.
+
 ### Debugging aids
 
 Two environment variables make the engine observable without a debugger:
