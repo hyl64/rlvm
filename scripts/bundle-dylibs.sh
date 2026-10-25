@@ -12,6 +12,10 @@ set -eu
 
 BIN="$1"; shift
 FW="$(dirname "$BIN")/../Frameworks"
+# This directory belongs to this script alone: start it fresh, so no copy
+# from an older policy -- carrying attributes we would now refuse -- can
+# outlive the policy that made it.
+rm -rf "$FW"
 mkdir -p "$FW"
 
 is_third_party() {
