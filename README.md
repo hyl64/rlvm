@@ -162,6 +162,19 @@ And to run the test suite:
 
     $ ./build/rlvm_unittests
 
+### Debugging aids
+
+Two environment variables make the engine observable without a debugger:
+
+    RLVM_SCREENSHOT=/path/shot.ppm    write the frame to a PPM
+    RLVM_SCREENSHOT_DELAY=90          ... after this many presented frames
+    RLVM_SCREENSHOT_EVERY=40          ... or every N frames, numbered
+
+    RLVM_SEEN_START=1                 begin at this scenario
+
+The capture reads the engine's own GL back buffer, so it needs no screen
+recording permission.
+
 ## KNOWN ISSUES
 
 Little Busters' baseball doesn't work because it is implemented as a

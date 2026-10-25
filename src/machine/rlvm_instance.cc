@@ -85,7 +85,13 @@ void RLVMInstance::Run(const boost::filesystem::path& gamerootPath) {
     Gameexe gameexe(gameexePath);
     gameexe("__GAMEPATH") = gamerootPath.string();
 
-    // Possibly force starting at a different seen
+    // Possibly force starting at a different seen. RLVM_SEEN_START does the
+    // same from the environment, which is how a window-less front end (or a
+    // test) asks for a particular scene without a full option parser.
+    if (seen_start_ == -1) {
+      if (const char* from_env = getenv("RLVM_SEEN_START"))
+        seen_start_ = atoi(from_env);
+    }
     if (seen_start_ != -1)
       gameexe("SEEN_START") = seen_start_;
 

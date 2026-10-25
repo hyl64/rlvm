@@ -4,3 +4,4 @@ build_*
 config.log
 unittests_*.log
 .DS_Store
+shots/

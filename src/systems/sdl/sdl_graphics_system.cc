@@ -41,6 +41,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <set>
 #include <sstream>
 #include <string>
@@ -119,6 +120,66 @@ void SDLGraphicsSystem::MarkScreenAsDirty(GraphicsUpdateType type) {
     GraphicsSystem::MarkScreenAsDirty(type);
 }
 
+namespace {
+
+// Save what the engine has drawn to a PPM, read straight out of the GL back
+// buffer. Nothing else in reach can see the frame: a screen grab needs
+// permissions the app does not have, and asking the user to grant them to
+// debug a renderer is a poor trade. Set RLVM_SCREENSHOT=<path> and the
+// engine will write one once, RLVM_SCREENSHOT_DELAY frames in (default 90).
+void MaybeSaveScreenshot() {
+  const char* path = getenv("RLVM_SCREENSHOT");
+  if (!path)
+    return;
+
+  static int frames_seen = 0;
+  static int written = 0;
+  ++frames_seen;
+
+  // RLVM_SCREENSHOT_EVERY turns one capture into a series: with a path of
+  // shot.ppm it writes shot-000001.ppm, shot-000002.ppm and so on, which is
+  // how you find the frame you actually care about.
+  const char* every_text = getenv("RLVM_SCREENSHOT_EVERY");
+  std::string target = path;
+  if (every_text) {
+    const int every = atoi(every_text);
+    if (every <= 0 || frames_seen % every != 0)
+      return;
+    char numbered[4096];
+    snprintf(numbered, sizeof(numbered), "%s-%06d", path, frames_seen);
+    target = numbered;
+  } else {
+    if (written)
+      return;
+    const char* delay_text = getenv("RLVM_SCREENSHOT_DELAY");
+    const int delay = delay_text ? atoi(delay_text) : 90;
+    if (frames_seen < delay)
+      return;
+  }
+  ++written;
+
+  GLint viewport[4];
+  glGetIntegerv(GL_VIEWPORT, viewport);
+  const int width = viewport[2];
+  const int height = viewport[3];
+  if (width <= 0 || height <= 0)
+    return;
+
+  std::vector<unsigned char> pixels(static_cast<size_t>(width) * height * 3);
+  glPixelStorei(GL_PACK_ALIGNMENT, 1);
+  glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
+
+  if (FILE* out = fopen(target.c_str(), "wb")) {
+    fprintf(out, "P6\n%d %d\n255\n", width, height);
+    // GL hands back its rows bottom-up; PPM wants them top-down.
+    for (int row = height - 1; row >= 0; --row)
+      fwrite(&pixels[static_cast<size_t>(row) * width * 3], 1, width * 3, out);
+    fclose(out);
+  }
+}
+
+}  // namespace
+
 void SDLGraphicsSystem::EndFrame() {
   FinalRenderers::iterator it = renderer_begin();
   FinalRenderers::iterator end = renderer_end();
@@ -146,6 +207,9 @@ void SDLGraphicsSystem::EndFrame() {
   }
 
   DrawCursor();
+
+  // Read the frame back before it is swapped away.
+  MaybeSaveScreenshot();
 
   // Swap the buffers
   glFlush();
@@ -212,6 +276,8 @@ std::shared_ptr<Surface> SDLGraphicsSystem::EndFrameToSurface() {
 
 // -----------------------------------------------------------------------
 // Public Interface
+
+
 // -----------------------------------------------------------------------
 
 SDLGraphicsSystem::SDLGraphicsSystem(System& system, Gameexe& gameexe)
