@@ -6,3 +6,6 @@ unittests_*.log
 .DS_Store
 shots/
 deliverable-*.png
+.sconsign.dblite
+__pycache__/
+*.pyc

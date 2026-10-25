@@ -30,6 +30,9 @@
 #include <SDL/SDL.h>
 
 #include <functional>
+#include <vector>
+#include <cstdlib>
+#include <cstring>
 
 #include "machine/rlmachine.h"
 #include "systems/base/event_listener.h"
@@ -52,7 +55,94 @@ SDLEventSystem::SDLEventSystem(SDLSystem& sys, Gameexe& gexe)
       system_(sys),
       raw_handler_(NULL) {}
 
+
+namespace {
+
+// A scripted player, for testing what a person would do with a mouse.
+//
+// RLVM_CLICK_SCRIPT is a semicolon-separated list of "button,x,y" actions
+// played back at RLVM_CLICK_DELAY milliseconds apart (default 600):
+//
+//   RLVM_CLICK_SCRIPT="1,400,300;1,400,300;3,400,300"
+//
+// Button 1 is the left button. Being able to drive the engine means a
+// whole session -- advancing text, opening the menu, saving -- can be run
+// and inspected without a hand on the trackpad.
+struct ScriptedClick {
+  int button;
+  int x;
+  int y;
+};
+
+const std::vector<ScriptedClick>& ScriptedClicks() {
+  static std::vector<ScriptedClick> clicks;
+  static bool parsed = false;
+  if (parsed)
+    return clicks;
+  parsed = true;
+
+  const char* script = getenv("RLVM_CLICK_SCRIPT");
+  if (!script)
+    return clicks;
+
+  const char* cursor = script;
+  while (*cursor) {
+    int button = 0, x = 0, y = 0;
+    if (sscanf(cursor, "%d,%d,%d", &button, &x, &y) == 3)
+      clicks.push_back(ScriptedClick{button, x, y});
+    while (*cursor && *cursor != ';')
+      ++cursor;
+    if (*cursor == ';')
+      ++cursor;
+  }
+  return clicks;
+}
+
+void PlayScriptedClicks() {
+  const std::vector<ScriptedClick>& clicks = ScriptedClicks();
+  if (clicks.empty())
+    return;
+
+  static size_t next = 0;
+  static unsigned int last_action = 0;
+
+  const unsigned int now = SDL_GetTicks();
+  const char* delay_text = getenv("RLVM_CLICK_DELAY");
+  const unsigned int delay = delay_text ? atoi(delay_text) : 600;
+  if (last_action != 0 && now - last_action < delay)
+    return;
+  if (next >= clicks.size())
+    return;
+
+  const ScriptedClick& click = clicks[next++];
+  last_action = now;
+
+  SDL_Event down;
+  memset(&down, 0, sizeof(down));
+  down.type = SDL_MOUSEBUTTONDOWN;
+  down.button.type = SDL_MOUSEBUTTONDOWN;
+  down.button.button = click.button;
+  down.button.state = SDL_PRESSED;
+  down.button.x = click.x;
+  down.button.y = click.y;
+  SDL_PushEvent(&down);
+
+  SDL_Event up;
+  memset(&up, 0, sizeof(up));
+  up.type = SDL_MOUSEBUTTONUP;
+  up.button.type = SDL_MOUSEBUTTONUP;
+  up.button.button = click.button;
+  up.button.state = SDL_RELEASED;
+  up.button.x = click.x;
+  up.button.y = click.y;
+  SDL_PushEvent(&up);
+}
+
+}  // namespace
+
 void SDLEventSystem::ExecuteEventSystem(RLMachine& machine) {
+  PlayScriptedClicks();
+
   SDL_Event event;
   while (SDL_PollEvent(&event)) {
     switch (event.type) {

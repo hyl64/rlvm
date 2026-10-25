@@ -1,3 +1,133 @@
+# rlvm, revived for Apple Silicon
+
+A RealLive interpreter — the engine behind Key's Kanon, Air, CLANNAD,
+Planetarian, Tomoyo After, Little Busters and Kud Wafter — built and running
+on modern macOS.
+
+This is a continuation of [Elliot Glaysher's rlvm](https://github.com/eglaysher/rlvm),
+which stopped building around 2015. The goal of this branch is narrower than
+the original's: make the tree build with a current toolchain, run correctly on
+Apple Silicon, and be pleasant to install.
+
+![Title screen](docs/screenshot-title.png)
+
+*Screenshots are from CLANNAD Full Voice, © VisualArts/Key, shown to identify
+what the engine renders. They are not part of the software.*
+
+## What works
+
+Verified on an M-series Mac with **CLANNAD Full Voice** (Chinese translation,
+231 scenarios, 4 GB of assets):
+
+| | |
+| --- | --- |
+| Build | debug and release, `scons` under Apple clang and Homebrew |
+| Tests | 260/260 unit tests pass |
+| Parse | all 231 scenarios of the retail archive |
+| Render | title screen, sprites, text, Chinese dialogue, system menu |
+| Audio | BGM plays |
+| Idle cost | 0.4 % CPU, 8.7 MB RSS |
+| App bundle | self-contained; runs where Homebrew was never installed |
+
+![Dialogue](docs/screenshot-dialogue.png)
+![System menu](docs/screenshot-menu.png)
+
+## Install
+
+Download the dmg from Releases, drag `rlvm.app` into `/Applications`, and
+launch it. Choose your game directory once — the choice is remembered.
+
+RLVM does not ship games. Point it at a directory you own that contains
+`Seen.txt` and `Gameexe.ini`.
+
+Two things worth knowing:
+
+- The build is not notarised. If macOS refuses to open it, either right-click
+  and choose **Open**, or run `xattr -dr com.apple.quarantine /Applications/rlvm.app`.
+- Keep game data **out of cloud-synced folders** (`~/Documents`, synced
+  `~/Desktop`). The sync daemon holds directories during its scans and the
+  engine can stall on the first `open()`. `/Users/Shared` or any local path is
+  fine. See [PERF.md](PERF.md).
+
+## What changed in this revival
+
+The tree had drifted a decade away from current tooling. Each fix is a commit
+with its reasoning; the substance:
+
+**Toolchain**
+
+- Homebrew is asked for its own prefix instead of assuming `/usr/local`, and
+  for its keg-only `gettext`.
+- `boost_system` left the link line: upstream made it header-only in 1.69.
+- The build scripts speak Python 3 (`print`, `filter()` returning an iterator,
+  `ParseConfig`'s three-argument callback, and a bare `exit` that had never
+  actually aborted anything).
+- The `SConscript.cocoa` packaging step asks `sdl-config --libs` instead of
+  the long-gone `--static-libs`.
+- Static archives from Homebrew carry no dependency metadata, so the app's
+  closure comes from `pkg-config --static` rather than a hand-written list.
+- `cassert` is included where `assert` is used: release builds define
+  `NDEBUG` and the transitive include stopped supplying it.
+
+**The app bundle**
+
+- `bundle-dylibs.sh` carries third-party libraries into `Contents/Frameworks`,
+  repoints every load at `@rpath`, and signs ad hoc.
+- **The bundle never started before.** `sdl12-compat` finds its backend with a
+  bare `dlopen()` that no load command mentions: it looks for
+  `libSDL2-2.0.0.dylib` beside itself, and that looks for `libSDL3.dylib`. Only
+  SDL3 was shipped, so the chain died at the first hop and the app put up an
+  error dialog before `main()` ever ran.
+- `NSHighResolutionCapable`: without it macOS pixel-doubles the window and the
+  renderer never sees a sharp surface.
+
+**Reading real games**
+
+- The bytecode reader decided where text ends using Shift-JIS's lead-byte
+  ranges. A translation that re-encodes its text as GBK desynchronised the
+  reader and every `select` after it failed. Lead-byte membership is now a
+  property of the codepage (`Codepage::IsLeadByte`), and the archive samples
+  scenarios to work out which codepage a file needs.
+- `FindFontFile` named fonts where 2007 knew them; macOS has moved, renamed
+  and unbundled those. It now finds Hiragino Sans GB and friends.
+
+**Using it**
+
+- The Cocoa front end ignored the command line. `rlvm.app /path/to/game` now
+  plays that game.
+- The last game is remembered, so a second launch needs no dialog.
+- Folders can be dropped on the icon.
+
+## Debugging aids
+
+The engine can be made to show what it did, without a debugger:
+
+    RLVM_SCREENSHOT=/path/shot.ppm    write the frame to a PPM
+    RLVM_SCREENSHOT_DELAY=90          ... after this many presented frames
+    RLVM_SCREENSHOT_EVERY=40          ... or every N frames, numbered
+    RLVM_SEEN_START=1                 begin at this scenario
+    RLVM_CLICK_SCRIPT="1,400,520;3,400,300"
+                                      play back mouse clicks (button,x,y)
+    RLVM_CLICK_DELAY=600              ... this many ms apart
+
+`RLVM_SCREENSHOT` reads the engine's own GL back buffer, so it needs no screen
+recording permission. Between these, a whole session — advancing text, opening
+the menu, saving — can be driven and inspected without a hand on the trackpad.
+
+## Building
+
+    $ brew install scons sdl12-compat boost gettext libogg libvorbis libsndfile
+    $ scons --release --fullstatic            # builds build/rlvm.app
+    $ scons --release --fullstatic --dmgname="rlvm <version>"
+    $ ./build/rlvm_unittests
+
+SDL_mixer, SDL_ttf, SDL_image, GLEW, guichan and zita-resampler build from
+`vendor/`; the SDL 1.2 API comes from `sdl12-compat`.
+
+---
+
+The rest of this file is the original project's documentation, kept as it was.
+
 rlvm: A RealLive interpreter for Linux and OSX.
 ===============================================
 
