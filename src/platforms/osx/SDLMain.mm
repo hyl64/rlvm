@@ -16,6 +16,7 @@
 
 #include "Utilities/gettext.h"
 #include "platforms/osx/CocoaRLVMInstance.h"
+#include "utilities/file.h"
 
 #include <boost/filesystem/operations.hpp>
 namespace fs = boost::filesystem;
@@ -376,10 +377,28 @@ BOOL setIncomingFilename(NSString* filename)
       requested = fs::path(argument);
     }
 
+    // Failing both of those, reopen whatever was played last. A player
+    // returns to the same game for weeks; making them find the folder again
+    // every launch is the sort of small rudeness that adds up.
+    NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
+    if (requested.empty()) {
+      NSString* remembered = [defaults stringForKey:@"LastGameDirectory"];
+      if (remembered && [remembered length]) {
+        fs::path candidate([remembered fileSystemRepresentation]);
+        if (fs::exists(CorrectPathCase(candidate / "Seen.txt")))
+          requested = candidate;
+      }
+    }
+
     fs::path gamerootPath =
         requested.empty() ? instance.SelectGameDirectory() : requested;
     if (gamerootPath.empty())
       exit(-1);
+
+    if (fs::exists(CorrectPathCase(gamerootPath / "Seen.txt")))
+      [defaults setObject:[NSString stringWithUTF8String:
+                                   gamerootPath.string().c_str()]
+                   forKey:@"LastGameDirectory"];
 
     instance.Run(gamerootPath);
 
