@@ -134,8 +134,15 @@ For packagers, the debian/install file contains a mapping of where files should 
 
 ### COMPILING UNDER OSX
 
-In addition to freetype-config and sdl-config needing to be in your
-`$PATH`, (like when compiling under Linux), the Sconscripts assume you use fink to manage your unix programs and that fink is installed at /sw/, though they also try to check for Darwin Ports. You may need to edit the SConscript files if using something else.
+The build asks Homebrew itself for its prefix and for the keg-only
+gettext, so nothing needs editing on either Intel or Apple Silicon
+machines. Install the dependencies:
+
+    $ brew install scons sdl12-compat boost gettext libogg libvorbis libsndfile
+
+SDL_mixer, SDL_ttf, SDL_image, GLEW, guichan and zita-resampler are
+built from the copies in vendor/, and the SDL 1.2 API comes from
+sdl12-compat.
 
 To build an OSX application, type:
 
@@ -143,11 +150,17 @@ To build an OSX application, type:
 
 which will build rlvm.app in the build directory. The resulting OSX
 application will ask you for the location of the game with a native
-dialog.
+dialog. The app is self-contained: it carries its third-party libraries
+inside Contents/Frameworks and runs on machines that never had
+Homebrew.
 
 To build a dmg file for distribution, type:
 
     $ scons --release --fullstatic --dmgname="rlvm <version>"
+
+And to run the test suite:
+
+    $ ./build/rlvm_unittests
 
 ## KNOWN ISSUES
 
