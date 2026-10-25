@@ -181,11 +181,22 @@ int Archive::GetProbableEncodingType() const {
 }
 
 void Archive::ReadTOC() {
+  // The table is nominally 10000 entries of eight bytes, but a file is free
+  // to be shorter than that -- a hand-built game, or a Seen.txt holding a
+  // single scenario. Reading the whole nominal table walked straight off the
+  // end of the mapping and took the process with it.
   const char* idx = info_.get();
-  for (int i = 0; i < 10000; ++i, idx += 8) {
+  const size_t available = info_.size() / 8;
+  const int entries = static_cast<int>(available < 10000 ? available : 10000);
+  for (int i = 0; i < entries; ++i, idx += 8) {
     const int offs = read_i32(idx);
-    if (offs)
-      scenarios_[i] = FilePos(info_.get() + offs, read_i32(idx + 4));
+    if (!offs)
+      continue;
+    const int length = read_i32(idx + 4);
+    if (offs < 0 || length < 0 ||
+        static_cast<size_t>(offs) + length > info_.size())
+      continue;  // Entry points outside the file; ignore rather than crash.
+    scenarios_[i] = FilePos(info_.get() + offs, length);
   }
 }
 
