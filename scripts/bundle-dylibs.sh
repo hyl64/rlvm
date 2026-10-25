@@ -76,14 +76,28 @@ for lib in "$FW"/*; do repoint "$lib"; done
 # files still carrying Finder metadata. It signs right over
 # com.apple.provenance -- the kernel re-attaches that to freshly created
 # files no matter what a copy does -- so clear exactly the two attributes
-# it minds, forgive whichever are absent, and drop the one hanging on the
-# bundle directory itself.
+# it minds, forgive whichever are absent.
 for image in $(find "$BUNDLE" -type f); do
   xattr -d com.apple.FinderInfo "$image" 2>/dev/null || true
   xattr -d com.apple.ResourceFork "$image" 2>/dev/null || true
 done
-xattr -d com.apple.FinderInfo "$BUNDLE" 2>/dev/null || true
 for lib in "$FW"/*; do codesign --force --sign - "$lib"; done
-codesign --force --sign - "$BIN"
+
+# In a synced tree (Desktop & Documents sync) the File Provider daemon
+# re-stamps the bundle directory with FinderInfo between the cleanup and
+# codesign's scan -- a race that cannot be prevented, only outlasted.
+attempt=0
+while :; do
+  xattr -d com.apple.FinderInfo "$BUNDLE" 2>/dev/null || true
+  if codesign --force --sign - "$BIN"; then
+    break
+  fi
+  attempt=$((attempt + 1))
+  if [ "$attempt" -ge 5 ]; then
+    echo "bundle-dylibs: signing kept failing; see codesign output above." >&2
+    exit 1
+  fi
+  sleep 1
+done
 
 echo "bundle-dylibs: $(ls "$FW" | wc -l | tr -d ' ') libraries brought home."
