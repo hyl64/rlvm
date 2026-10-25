@@ -17,7 +17,12 @@ static_env.Append(
     "-Wno-sign-compare",
     "-Wno-narrowing",
     "-std=c++17"
-  ]
+  ],
+
+  # The bundle must run on machines without Homebrew: Contents/Frameworks
+  # joins the dyld search path through this rpath, both for the loads we
+  # rewrite and for the bare dlopen() sdl12-compat aims at its backend.
+  LINKFLAGS = ["-Wl,-rpath,@executable_path/../Frameworks"]
 )
 
 def MergeEverythingButSDLMain(env, cmd, unique = 0):
@@ -66,6 +71,17 @@ static_env.InstallAs(
   source='src/platforms/osx/StubInfoPlist.strings')
 static_env.InstallAs(target='$OUTPUT_DIR/rlvm.app/Contents/MacOS/rlvm',
                      source='rlvm-static')
+
+# Homebrew will not exist on the machines this bundle visits: carry the
+# third-party dylibs home and repoint every load at @rpath. libSDL3 is
+# invisible to otool -- sdl12-compat dlopen()s it by bare name -- so it is
+# named out loud; the bundle rpath above is what lets that dlopen hit.
+static_env.Command(
+  '$OUTPUT_DIR/rlvm.app/Contents/Frameworks/.bundle-fixed',
+  '$OUTPUT_DIR/rlvm.app/Contents/MacOS/rlvm',
+  "scripts/bundle-dylibs.sh $SOURCE "
+  + env.get('BREW_PREFIX', '/opt/homebrew')
+  + "/opt/sdl3/lib/libSDL3.0.dylib")
 
 AddOption('--dmgname', action='store',
           help='Builds a release package with the attached name. '

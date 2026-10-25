@@ -158,6 +158,9 @@ if env['PLATFORM'] == "darwin":
         CPPPATH = [prefix + "/include/"],
         LIBPATH = [prefix + "/lib/"]
       )
+      # Remembered for platform scripts that need to reach a formula
+      # directly (the app bundle carries SDL3 home by its opt path).
+      env['BREW_PREFIX'] = prefix
       # gettext is keg-only: it never appears under the prefix itself, so
       # Homebrew does this bogus thing of handing out its Cellar path only
       # through 'brew --prefix gettext'.
