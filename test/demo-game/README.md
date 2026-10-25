@@ -19,6 +19,9 @@ The compiler is rlc-python, a byte-for-byte Python port of rldev's rlc:
 
     build/rlvm.app/Contents/MacOS/rlvm test/demo-game
 
+The checked-in `Gameexe.ini` is the minimum the engine needs: a REGNAME (for
+the save directory), a window, and a screen size.
+
 A font is discovered from system paths (see src/utilities/find_font_file.cc);
 no font file needs to ship with the game.
 
