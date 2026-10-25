@@ -1,22 +1,25 @@
 #!/bin/sh
 # bundle-dylibs.sh: make rlvm.app run where Homebrew never existed.
 #
-# Every third-party dylib moves into Contents/Frameworks and every load
-# command is repointed at @rpath. otool only sees load commands, so
-# libraries that arrive through a bare dlopen() -- sdl12-compat's SDL3
-# backend -- are passed to us explicitly as extra arguments.
+#   usage: bundle-dylibs.sh <freshly-built-rlvm-static> <bundle-dir> [extra-dylib ...]
 #
-#   usage: bundle-dylibs.sh <executable-inside-bundle> [extra-dylib ...]
+# The script owns the two places it writes -- Contents/MacOS/rlvm and
+# Contents/Frameworks -- and rebuilds both from the built binary on every
+# run, so no rewritten load command from a previous pass can linger. Every
+# third-party dylib moves into Frameworks with its loads repointed at
+# @rpath. otool only sees load commands, so libraries that arrive through
+# a bare dlopen() -- sdl12-compat's SDL3 backend -- are passed explicitly
+# as extra arguments.
 
 set -eu
 
-BIN="$1"; shift
-FW="$(dirname "$BIN")/../Frameworks"
-# This directory belongs to this script alone: start it fresh, so no copy
-# from an older policy -- carrying attributes we would now refuse -- can
-# outlive the policy that made it.
+SRC="$1"; BUNDLE="$2"; shift 2
+FW="$BUNDLE/Contents/Frameworks"
+BIN="$BUNDLE/Contents/MacOS/$(basename "$SRC")"
+
 rm -rf "$FW"
 mkdir -p "$FW"
+cp -LX "$SRC" "$BIN"
 
 is_third_party() {
   case "$1" in
@@ -26,9 +29,8 @@ is_third_party() {
 }
 
 # Copy <path> into Frameworks and give it an @rpath identity, once.
-# -X: leave the source's extended attributes behind -- brew dylibs carry a
-# system-managed com.apple.provenance that not even root may clear, and a
-# fresh signature wants a clean slate anyway.
+# -X: leave the source's extended attributes behind; a fresh signature
+# wants a clean slate.
 copy() {
   path="$1"
   name="$(basename "$path")"
@@ -66,21 +68,16 @@ repoint() {
 repoint "$BIN"
 for lib in "$FW"/*; do repoint "$lib"; done
 
-# Rewriting load commands invalidates signatures; make everything ad-hoc
-# valid again so Gatekeeper has nothing to complain about locally.
-# codesign signing anything inside the .app scans the whole bundle and
-# refuses files still carrying Finder metadata. It signs right over
+# codesign signing inside the .app scans the whole bundle and refuses
+# files still carrying Finder metadata. It signs right over
 # com.apple.provenance -- the kernel re-attaches that to freshly created
-# Mach-O images no matter what a copy does -- so clear exactly the two
-# attributes it actually minds, and forgive whichever are absent.
-BUNDLE="$(dirname "$BIN")/../.."
+# files no matter what a copy does -- so clear exactly the two attributes
+# it minds, forgive whichever are absent, and drop the one hanging on the
+# bundle directory itself.
 for image in $(find "$BUNDLE" -type f); do
   xattr -d com.apple.FinderInfo "$image" 2>/dev/null || true
   xattr -d com.apple.ResourceFork "$image" 2>/dev/null || true
 done
-# The bundle directory itself: macOS hangs FinderInfo on directories as it
-# pleases, and codesign scanning the bundle root names it as disallowed
-# data. provenance it never mentions, and signs right over -- leave it be.
 xattr -d com.apple.FinderInfo "$BUNDLE" 2>/dev/null || true
 for lib in "$FW"/*; do codesign --force --sign - "$lib"; done
 codesign --force --sign - "$BIN"
