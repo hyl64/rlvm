@@ -47,6 +47,12 @@ const char* western_platform_fonts[] = {
 
 const char* ja_platform_fonts[] = {
 #if defined(__APPLE__)
+    // Modern macOS: the fonts the entries below name have moved, been
+    // renamed, or vanished entirely. Hiragino Sans GB ships with the
+    // system and covers the kana and kanji RealLive throws at us.
+    "/System/Library/Fonts/Hiragino Sans GB.ttc",
+    "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+    "/Library/Fonts/Arial Unicode.ttf",
     "/Library/Fonts/OsakaMono.ttf",
     // Leopard
     "/Library/Fonts/ヒラギノ角ゴ Pro W3.otf",
