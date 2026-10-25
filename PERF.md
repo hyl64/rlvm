@@ -42,13 +42,23 @@ layers before the GPU sees it.
 
 | Phase | Time |
 | --- | --- |
-| Launch to SEEN.TXT open | 1.4 s |
+| Launch to SEEN.TXT open | 1.0 s (from a local folder) / 1.4-2.0 s (from ~/Documents) |
 | Launch to title screen | ~20 s |
 | Parsing all 231 scenarios (offline) | 3.9 s |
 
 The title figure is the game's own opening movie and logos, not engine
 overhead. Cold-start measurements vary by several seconds with page cache
 state, so treat them as approximate.
+
+## Keep game data out of cloud-synced folders
+
+A launch from `~/Documents` was caught with every sample blocked in an
+`open()` syscall, inside `CheckBadEngine`'s directory walk: the file
+provider daemon that syncs Desktop and Documents was holding the
+directory. The same launch from `/Users/Shared` opened SEEN.TXT in 1.0 s.
+
+Games are multi-gigabyte read-mostly trees that every filesystem scan now
+has to negotiate with a sync service. Keep them on a local path.
 
 ## Levers, in order of value
 
